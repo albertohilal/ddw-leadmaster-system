@@ -1,0 +1,200 @@
+/**
+ * DDW LeadMaster System
+ * Entry Point de la Aplicación
+ * 
+ * Sistema unificado de gestión de leads con WhatsApp,
+ * curación de datos y respuestas automáticas con IA
+ */
+
+require('dotenv').config();
+const express = require('express');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const cors = require('cors');
+
+// Core
+const config = require('./core/config');
+const logger = require('./core/logger');
+const database = require('./core/database/connection');
+
+// Middleware
+const errorHandler = require('./middleware/errorHandler');
+const rateLimiter = require('./middleware/rateLimiter');
+
+// Routes
+const routes = require('./routes');
+
+// Services
+// const whatsappService = require('./modules/whatsapp/WhatsAppService'); // TODO: Implementar
+
+// Initialize Express App
+const app = express();
+const PORT = config.server.port || 3010;
+
+// ==========================================
+// MIDDLEWARE SETUP
+// ==========================================
+
+// Security
+app.use(helmet());
+
+// CORS
+app.use(cors({
+  origin: config.cors.origin,
+  credentials: config.cors.credentials
+}));
+
+// Body Parser
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Logging
+if (config.server.env !== 'test') {
+  app.use(morgan('combined', {
+    stream: { write: message => logger.info(message.trim()) }
+  }));
+}
+
+// Rate Limiting
+app.use('/api/', rateLimiter.apiLimiter);
+
+// Static Files
+app.use(express.static('src/public'));
+
+// ==========================================
+// ROUTES
+// ==========================================
+
+app.use('/api', routes);
+
+// Health Check
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: config.server.env,
+    version: require('../package.json').version
+  });
+});
+
+// Root
+app.get('/', (req, res) => {
+  res.json({
+    name: 'DDW LeadMaster System',
+    version: require('../package.json').version,
+    description: 'Sistema unificado de gestión de leads con WhatsApp, curación de datos y respuestas automáticas con IA',
+    endpoints: {
+      health: '/health',
+      api: '/api',
+      admin: '/admin',
+      docs: '/api/docs'
+    }
+  });
+});
+
+// ==========================================
+// ERROR HANDLING
+// ==========================================
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Cannot ${req.method} ${req.path}`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Global Error Handler
+app.use(errorHandler);
+
+// ==========================================
+// STARTUP
+// ==========================================
+
+async function startServer() {
+  try {
+    // 1. Verificar conexión a base de datos
+    logger.info('🔌 Conectando a base de datos...');
+    await database.testConnection();
+    logger.info('✅ Base de datos conectada');
+
+    // 2. Inicializar servicios
+    logger.info('🚀 Inicializando servicios...');
+    
+    // WhatsApp Service (opcional en inicio)
+    if (config.features.autoStartWhatsApp) {
+      logger.info('📱 Iniciando servicios WhatsApp...');
+      // await whatsappService.initialize();
+      logger.info('✅ WhatsApp servicios listos');
+    }
+
+    // 3. Iniciar servidor HTTP
+    const server = app.listen(PORT, () => {
+      logger.info('='.repeat(50));
+      logger.info(`🚀 DDW LeadMaster System`);
+      logger.info(`📡 Servidor corriendo en http://localhost:${PORT}`);
+      logger.info(`🌍 Entorno: ${config.server.env}`);
+      logger.info(`📝 Versión: ${require('../package.json').version}`);
+      logger.info('='.repeat(50));
+    });
+
+    // Graceful Shutdown
+    process.on('SIGTERM', () => gracefulShutdown(server));
+    process.on('SIGINT', () => gracefulShutdown(server));
+
+  } catch (error) {
+    logger.error('❌ Error al iniciar servidor:', error);
+    process.exit(1);
+  }
+}
+
+async function gracefulShutdown(server) {
+  logger.info('🛑 Iniciando apagado graceful...');
+
+  // Cerrar servidor HTTP
+  server.close(() => {
+    logger.info('✅ Servidor HTTP cerrado');
+  });
+
+  try {
+    // Cerrar conexiones WhatsApp
+    logger.info('📱 Cerrando sesiones WhatsApp...');
+    // await whatsappService.closeAllSessions();
+    logger.info('✅ Sesiones WhatsApp cerradas');
+
+    // Cerrar conexión a BD
+    logger.info('🔌 Cerrando conexión a base de datos...');
+    await database.closeConnection();
+    logger.info('✅ Conexión a BD cerrada');
+
+    logger.info('👋 Sistema apagado correctamente');
+    process.exit(0);
+  } catch (error) {
+    logger.error('❌ Error durante apagado:', error);
+    process.exit(1);
+  }
+}
+
+// Handle Uncaught Exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('💥 Uncaught Exception:', error);
+  process.exit(1);
+});
+
+// Handle Unhandled Promise Rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+// ==========================================
+// START
+// ==========================================
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;
