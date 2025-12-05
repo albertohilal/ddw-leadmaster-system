@@ -22,14 +22,18 @@ const errorHandler = require('./middleware/errorHandler');
 const rateLimiter = require('./middleware/rateLimiter');
 
 // Routes
-const routes = require('./routes');
+const apiRoutes = require('./routes');
+const initializeWhatsAppRoutes = require('./routes/whatsapp');
 
 // Services
-// const whatsappService = require('./modules/whatsapp/WhatsAppService'); // TODO: Implementar
+const WhatsAppService = require('./modules/whatsapp/WhatsAppService');
 
 // Initialize Express App
 const app = express();
 const PORT = config.server.port || 3010;
+
+// Global service instances
+let whatsAppService = null;
 
 // ==========================================
 // MIDDLEWARE SETUP
@@ -65,7 +69,8 @@ app.use(express.static('src/public'));
 // ROUTES
 // ==========================================
 
-app.use('/api', routes);
+// Montar rutas base de la API
+app.use('/api', apiRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
@@ -123,14 +128,25 @@ async function startServer() {
     // 2. Inicializar servicios
     logger.info('🚀 Inicializando servicios...');
     
-    // WhatsApp Service (opcional en inicio)
+    // WhatsApp Service
+    logger.info('📱 Inicializando servicio WhatsApp...');
+    whatsAppService = new WhatsAppService(database);
+    await whatsAppService.initialize();
+    
     if (config.features.autoStartWhatsApp) {
-      logger.info('📱 Iniciando servicios WhatsApp...');
-      // await whatsappService.initialize();
-      logger.info('✅ WhatsApp servicios listos');
+      await whatsAppService.start();
+      logger.info('✅ WhatsApp servicio iniciado automáticamente');
+    } else {
+      logger.info('✅ WhatsApp servicio inicializado (no iniciado)');
     }
 
-    // 3. Iniciar servidor HTTP
+    // 3. Configurar rutas WhatsApp con servicios
+    logger.info('🛣️ Configurando rutas WhatsApp...');
+    const whatsappRoutes = initializeWhatsAppRoutes(whatsAppService);
+    app.use('/api/whatsapp', whatsappRoutes);
+    logger.info('✅ Rutas WhatsApp montadas en /api/whatsapp');
+
+    // 4. Iniciar servidor HTTP
     const server = app.listen(PORT, () => {
       logger.info('='.repeat(50));
       logger.info(`🚀 DDW LeadMaster System`);
@@ -159,10 +175,12 @@ async function gracefulShutdown(server) {
   });
 
   try {
-    // Cerrar conexiones WhatsApp
-    logger.info('📱 Cerrando sesiones WhatsApp...');
-    // await whatsappService.closeAllSessions();
-    logger.info('✅ Sesiones WhatsApp cerradas');
+    // Cerrar servicios WhatsApp
+    if (whatsAppService) {
+      logger.info('📱 Cerrando servicios WhatsApp...');
+      await whatsAppService.destroy();
+      logger.info('✅ Servicios WhatsApp cerrados');
+    }
 
     // Cerrar conexión a BD
     logger.info('🔌 Cerrando conexión a base de datos...');

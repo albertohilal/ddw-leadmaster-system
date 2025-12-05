@@ -37,8 +37,38 @@ const whatsappLimiter = rateLimit({
   }
 });
 
+// Rate limiter por sesión para WhatsApp
+const rateLimitBySession = (req, res, next) => {
+  const sessionId = req.params.sessionId;
+  
+  if (!sessionId) {
+    return next();
+  }
+  
+  // Crear un rate limiter específico para esta sesión
+  const sessionLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minuto
+    max: config.whatsapp.maxMessagesPerMinute,
+    keyGenerator: (req) => {
+      return `whatsapp:${req.params.sessionId}:${req.ip}`;
+    },
+    message: {
+      success: false,
+      error: 'Rate limit exceeded for session',
+      message: `Demasiados mensajes para la sesión ${sessionId}. Límite: ${config.whatsapp.maxMessagesPerMinute} por minuto.`,
+      retryAfter: 60,
+      sessionId
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+  });
+  
+  return sessionLimiter(req, res, next);
+};
+
 module.exports = {
   apiLimiter,
   authLimiter,
-  whatsappLimiter
+  whatsappLimiter,
+  rateLimitBySession
 };

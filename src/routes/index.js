@@ -19,21 +19,25 @@ router.get('/', (req, res) => {
   res.json({
     name: 'DDW LeadMaster API',
     version: '1.0.0',
+    description: 'Sistema unificado de gestión de leads con WhatsApp multicliente',
     endpoints: {
       health: '/api/health',
       whatsapp: '/api/whatsapp',
       leads: '/api/leads',
       campaigns: '/api/campaigns',
       admin: '/api/admin'
+    },
+    features: {
+      whatsapp: {
+        multiSession: true,
+        maxSessions: 10,
+        qrCodeGeneration: true,
+        messageQueue: true,
+        autoResponder: true
+      }
     }
   });
 });
 
-// TODO: Agregar más rutas
-// router.use('/auth', require('./auth.routes'));
-// router.use('/whatsapp', require('./whatsapp.routes'));
-// router.use('/leads', require('./leads.routes'));
-// router.use('/campaigns', require('./campaigns.routes'));
-// router.use('/admin', require('./admin.routes'));
-
+// Exportar directamente el router
 module.exports = router;

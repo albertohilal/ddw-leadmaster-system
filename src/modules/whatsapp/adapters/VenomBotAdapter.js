@@ -5,8 +5,8 @@
 
 const { create } = require('venom-bot');
 const EventEmitter = require('events');
-const logger = require('../../core/logger');
-const config = require('../../core/config');
+const logger = require('../../../core/logger');
+const config = require('../../../core/config');
 
 class VenomBotAdapter extends EventEmitter {
   constructor() {
