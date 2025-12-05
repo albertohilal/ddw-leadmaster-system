@@ -26,6 +26,7 @@ const config = {
 
   // Redis
   redis: {
+    url: process.env.REDIS_URL || 'redis://localhost:6379',
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT) || 6379,
     password: process.env.REDIS_PASSWORD || undefined,
@@ -40,10 +41,17 @@ const config = {
     temperature: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.7
   },
 
+  // Google API
+  google: {
+    apiKey: process.env.GOOGLE_API_KEY
+  },
+
   // WhatsApp Bot
   whatsapp: {
     responderActivo: process.env.BOT_RESPONDER_ACTIVO === 'true',
     hostEnv: process.env.HOST_ENV || 'local',
+    sessionName: process.env.SESSION_NAME || 'whatsapp-bot-responder',
+    sessionsPath: process.env.WHATSAPP_SESSIONS_PATH || './tokens',
     messageDelay: parseInt(process.env.MESSAGE_DELAY) || 3000,
     maxMessagesPerMinute: parseInt(process.env.MAX_MESSAGES_PER_MINUTE) || 20
   },
