@@ -53,7 +53,12 @@ const config = {
     sessionName: process.env.SESSION_NAME || 'whatsapp-bot-responder',
     sessionsPath: process.env.WHATSAPP_SESSIONS_PATH || './tokens',
     messageDelay: parseInt(process.env.MESSAGE_DELAY) || 3000,
-    maxMessagesPerMinute: parseInt(process.env.MAX_MESSAGES_PER_MINUTE) || 20
+    maxMessagesPerMinute: parseInt(process.env.MAX_MESSAGES_PER_MINUTE) || 20,
+    // Configuración multicliente
+    maxSessions: parseInt(process.env.WHATSAPP_MAX_SESSIONS) || 10,
+    sessionTimeout: parseInt(process.env.WHATSAPP_SESSION_TIMEOUT) || 300000, // 5 minutos
+    reconnectAttempts: parseInt(process.env.WHATSAPP_RECONNECT_ATTEMPTS) || 3,
+    reconnectDelay: parseInt(process.env.WHATSAPP_RECONNECT_DELAY) || 30000 // 30 segundos
   },
 
   // Sesiones
