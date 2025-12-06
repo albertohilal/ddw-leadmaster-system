@@ -99,22 +99,6 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// ERROR HANDLING
-// ==========================================
-
-// 404 Handler
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not Found',
-    message: `Cannot ${req.method} ${req.path}`,
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Global Error Handler
-app.use(errorHandler);
-
-// ==========================================
 // STARTUP
 // ==========================================
 
@@ -146,7 +130,19 @@ async function startServer() {
     app.use('/api/whatsapp', whatsappRoutes);
     logger.info('✅ Rutas WhatsApp montadas en /api/whatsapp');
 
-    // 4. Iniciar servidor HTTP
+    // 4. Registrar manejadores de error DESPUÉS de montar todas las rutas
+    //    para evitar que el catch-all 404 bloquee las rutas dinámicas
+    app.use((req, res) => {
+      res.status(404).json({
+        error: 'Not Found',
+        message: `Cannot ${req.method} ${req.path}`,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    app.use(errorHandler);
+
+    // 5. Iniciar servidor HTTP
     const server = app.listen(PORT, () => {
       logger.info('='.repeat(50));
       logger.info(`🚀 DDW LeadMaster System`);

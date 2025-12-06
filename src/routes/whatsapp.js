@@ -19,6 +19,18 @@ function initializeWhatsAppRoutes(whatsAppService) {
   // Crear un nuevo router para cada inicialización
   const router = express.Router();
   
+  // Ruta de prueba simple (ANTES del middleware de verificación)
+  router.get('/test', (req, res) => {
+    res.json({ 
+      message: 'WhatsApp routes are working!',
+      service: {
+        initialized: whatsAppService?.isInitialized || false,
+        running: whatsAppService?.isRunning || false
+      },
+      timestamp: new Date().toISOString()
+    });
+  });
+  
   // Middleware para verificar que el servicio esté disponible
   router.use((req, res, next) => {
     if (!whatsAppService || !whatsAppService.isInitialized) {
@@ -29,10 +41,16 @@ function initializeWhatsAppRoutes(whatsAppService) {
       });
     }
     
+    // Permitir acceso a rutas de control (/start, /stop) y diagnóstico sin verificar isRunning
+    const allowedWhenNotRunning = ['/start', '/stop', '/health', '/stats'];
+    if (allowedWhenNotRunning.includes(req.path)) {
+      return next();
+    }
+    
     if (!whatsAppService.isRunning) {
       return res.status(503).json({
         error: 'WhatsApp service not running',
-        message: 'El servicio WhatsApp está detenido',
+        message: 'El servicio WhatsApp está detenido. Usa /api/whatsapp/start para iniciar.',
         timestamp: new Date().toISOString()
       });
     }
